@@ -190,6 +190,9 @@ def main():
     subparsers.add_parser(
         "build-sheet", add_help=False,
         help="Assemble the specimen x haplotype sheet from per-specimen calls")
+    subparsers.add_parser(
+        "derive-panel", add_help=False,
+        help="Reconstruct an amplicon panel FASTA from genome-mapped reads -- coverage peaks are the amplicons (requires the amplicon extra)")
 
     # Command 5: run-all
     runall_parser = subparsers.add_parser("run-all", help="Execute complete pipeline (Sheet Generation -> Distance Matrix -> Clustering)")
@@ -225,7 +228,7 @@ def main():
     # The three amplicon subcommands own their own flags and are forwarded verbatim, so their
     # arguments must survive this parser rather than be rejected by it. Everything else is
     # parsed strictly, so a typo in an existing command still fails loudly.
-    PASSTHROUGH = ("define-windows", "call-haplotypes", "build-sheet")
+    PASSTHROUGH = ("define-windows", "call-haplotypes", "build-sheet", "derive-panel")
     if len(sys.argv) > 1 and sys.argv[1] in PASSTHROUGH:
         args, _ = parser.parse_known_args(sys.argv[1:2])
     else:
@@ -352,13 +355,14 @@ def main():
             fh.write(html)
         print(f"[Report] Wrote {args.output} ({args.flavor}/{args.theme}).")
 
-    elif args.command in ("define-windows", "call-haplotypes", "build-sheet"):
+    elif args.command in ("define-windows", "call-haplotypes", "build-sheet", "derive-panel"):
         # argparse has already consumed the subcommand; hand the remainder to the module.
-        from .amplicon import build_sheet, define_windows, window_haplotypes
+        from .amplicon import build_sheet, define_windows, derive_panel, window_haplotypes
         rest = sys.argv[2:]
         {"define-windows": define_windows.main,
          "call-haplotypes": window_haplotypes.main,
-         "build-sheet": build_sheet.main}[args.command](rest)
+         "build-sheet": build_sheet.main,
+         "derive-panel": derive_panel.main}[args.command](rest)
 
     elif args.command == "run-all":
         os.makedirs(args.output_dir, exist_ok=True)

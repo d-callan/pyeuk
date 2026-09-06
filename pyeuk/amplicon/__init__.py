@@ -5,6 +5,8 @@ This is the half of the chain that runs before the distance engine. It turns ali
 into the specimen x haplotype sheet the rest of PyEuk consumes, without a curated haplotype
 catalogue.
 
+    derive_panel        reconstruct the amplicon panel FASTA from GENOME-mapped reads (coverage
+                        peaks are the amplicons) -- the optional first step when no panel is known
     define_windows      choose the analysis windows from the cohort's own reads
     window_haplotypes   read a haplotype off each single spanning read
     build_sheet         assemble the presence/absence sheet and the long-format calls
@@ -26,6 +28,6 @@ first use, so the core package installs and imports without it:
     pip install 'pyeuk[amplicon]'
 """
 
-from . import build_sheet, define_windows, window_haplotypes  # noqa: F401
+from . import build_sheet, define_windows, derive_panel, window_haplotypes  # noqa: F401
 
-__all__ = ["define_windows", "window_haplotypes", "build_sheet"]
+__all__ = ["derive_panel", "define_windows", "window_haplotypes", "build_sheet"]

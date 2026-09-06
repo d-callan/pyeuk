@@ -56,7 +56,7 @@ assert "linkage_method" in fp, "linkage_method missing"
 assert hasattr(CyclosporaClusterFinder, "suggest_linkage_threshold")
 assert "weight_mode" in ep or "weight_mode" in dp, "weight_mode missing"
 assert "project_psd" in ep or "project_psd" in dp, "project_psd missing"
-assert set(amplicon.__all__) == {"define_windows", "window_haplotypes", "build_sheet"}
+assert set(amplicon.__all__) == {"derive_panel", "define_windows", "window_haplotypes", "build_sheet"}
 assert cyclospora_pyeuk.__version__ == pyeuk.__version__
 print("pyeuk", pyeuk.__version__, "| pysam", pysam.__version__, "| all checks passed")
 PYEOF
