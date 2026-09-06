@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+* **Amplicon panel discovery (`pyeuk derive-panel`)**: reconstruct the amplicon panel FASTA from the cohort's own reads when no curated panel is available, so the standard amplicon path no longer *requires* a pre-supplied panel — it can be handed a derived one.
+  - Input is GENOME-mapped BAMs (a representative `--sample`, like `define-windows`) plus the reference genome FASTA. Targeted-amplicon reads pile up on the amplified regions as sharp, contiguous coverage peaks against an empty background; each peak is an amplicon and its genome sequence is the panel entry. This is exactly how a `peak66`-style panel is built in the first place.
+  - The peak threshold is **data-adaptive**: a peak must clear `--min-depth-frac` (default 0.01) of the run's own maximum depth, with an absolute floor (`--min-abs-depth`). Amplicon peaks sit orders of magnitude above background, so this needs no per-dataset retuning. `--merge-gap`, `--min-length`, and `--pad` control peak assembly.
+  - Output is a panel FASTA in the same `>name_L<len>bp source=... loc=<contig>:<start>-<end>` format the standard workflow consumes (a drop-in for its panel input), plus an optional BED and QC TSV. pysam-only (the `amplicon` extra); mapping is done upstream, exactly as `define-windows` consumes BAMs.
+  - Validated on a CDC 8-marker cohort (PRJNA578931): recovered exactly the amplicons the frozen 45-locus panel carries for that data **and** surfaced strong amplicons the frozen panel omits.
+
 ## [0.7.0] - 2026-09-03
 
 ### Added
