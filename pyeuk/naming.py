@@ -108,6 +108,7 @@ def name_haplotype(
         if hap_str.isdigit() and len(hap_str) == 1:
             hap_str = f"0{hap_str}"
 
+    style = (style or "de_novo").lower()
     if style == "cdc":
         return f"{clean_locus}_Hap_{int(hap_str) if hap_str.isdigit() else hap_str}"
     elif style == "novel":

@@ -5,6 +5,7 @@ Provides QC length/Q-score filtering, minimap2 map-ont alignment, and homopolyme
 
 import os
 import re
+import math
 import subprocess
 import numpy as np
 import pandas as pd
@@ -49,9 +50,12 @@ class NanoporeAmpliconProcessor:
 
                 read_len = len(seq)
                 if self.min_length <= read_len <= self.max_length:
-                    # Calculate average Phred quality score
                     q_scores = [ord(c) - 33 for c in qual]
-                    avg_q = sum(q_scores) / len(q_scores) if q_scores else 0.0
+                    if q_scores:
+                        mean_p = sum(10.0 ** (-q / 10.0) for q in q_scores) / len(q_scores)
+                        avg_q = -10.0 * math.log10(mean_p) if mean_p > 0 else 0.0
+                    else:
+                        avg_q = 0.0
                     if avg_q >= self.min_qscore:
                         outfile.write(f"{header}{seq}\n{plus}{qual}\n")
                         passed_reads += 1
@@ -61,8 +65,9 @@ class NanoporeAmpliconProcessor:
 
     def generate_ont_consensus(self, reads: List[str], locus_name: str) -> str:
         """
-        Vectorized majority-rule consensus builder for ONT amplicon reads at a given locus.
-        Corrects homopolymer indels by consensus voting across aligned read positional vectors.
+        Majority-rule consensus builder for ONT amplicon reads at a given locus.
+        Votes per column up to the median read length; reads are NOT aligned, so this does
+        not correct indel/homopolymer offsets (a length-based positional vote only).
         """
         if not reads:
             return ""
@@ -122,9 +127,9 @@ class NanoporeAmpliconProcessor:
                 ref_len = len(ref_seq)
                 matches = 0
                 for r in reads:
-                    # K-mer seed matching
-                    kmer = ref_seq[:20]
-                    if kmer in r:
+                    _mid = max(0, ref_len // 2 - 10)
+                    kmer = ref_seq[_mid:_mid + 20]
+                    if kmer and kmer in r:
                         matches += 1
 
                 if matches >= 5: # Min read support cutoff

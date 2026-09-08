@@ -115,7 +115,7 @@ def match_assembled_contig(
             if cov >= min_coverage:
                 return (hap_name, 100.0, cov)
 
-        # Semi-global alignment approximation
+        # Position-anchored identity scan (no gapping): indels read as mismatches
         min_len = min(qlen, rlen)
         max_len = max(qlen, rlen)
         cov = (min_len / max_len) * 100.0
@@ -263,6 +263,9 @@ def generate_haplotype_sheet_from_assemblies(
     else:
         os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
+    _od = os.path.dirname(output_path)
+    if _od:
+        os.makedirs(_od, exist_ok=True)
     genotype_sheet.to_csv(output_path, sep="\t", index=False)
     print(f"[HaplotypeSheet] Ingested external assemblies for {len(sorted_samples)} specimens ({len(sorted_markers)} markers called) -> {output_path}")
     return genotype_sheet
@@ -508,10 +511,10 @@ def generate_haplotype_sheet(
 
     specimen_map: Dict[str, str] = {}
     background_map: Dict[str, str] = {}
-    is_fasta_dir = False
+    fasta_flags = {}
 
     def collect_source(path: str, target_dict: Dict[str, str], label: str):
-        nonlocal is_fasta_dir
+        nonlocal fasta_flags
         if not path or not os.path.exists(path):
             return
 
@@ -522,7 +525,7 @@ def generate_haplotype_sheet(
                         basename = os.path.basename(member)
                         if not member.endswith("/") and basename and not basename.startswith(".") and not member.startswith("__MACOSX"):
                             if basename.endswith((".fasta", ".fa", ".fna")):
-                                is_fasta_dir = True
+                                fasta_flags[label] = True
                             with zf.open(member) as f:
                                 content = f.read().decode('utf-8', errors='ignore')
                                 sample_id = os.path.splitext(basename)[0]
@@ -540,7 +543,7 @@ def generate_haplotype_sheet(
                 for fname in files:
                     fpath = os.path.join(root, fname)
                     if fname.endswith((".fasta", ".fa", ".fna")):
-                        is_fasta_dir = True
+                        fasta_flags[label] = True
                     if fname.endswith(".zip"):
                         try:
                             with zipfile.ZipFile(fpath, 'r') as zf:
@@ -548,7 +551,7 @@ def generate_haplotype_sheet(
                                     basename = os.path.basename(member)
                                     if not member.endswith("/") and basename and not basename.startswith(".") and not member.startswith("__MACOSX"):
                                         if basename.endswith((".fasta", ".fa", ".fna")):
-                                            is_fasta_dir = True
+                                            fasta_flags[label] = True
                                         with zf.open(member) as f:
                                             content = f.read().decode('utf-8', errors='ignore')
                                             sample_id = os.path.splitext(basename)[0]
@@ -570,6 +573,7 @@ def generate_haplotype_sheet(
                         except Exception as e:
                             if isinstance(e, ValueError):
                                 raise
+                            print(f"[HaplotypeSheet Warning] Could not read {fpath}: {e}")
 
     collect_source(specimen_dir, specimen_map, "specimen")
     if background_dir:
@@ -585,7 +589,7 @@ def generate_haplotype_sheet(
     # Primary case cohort is built from specimens (background controls are not emitted as patient case rows)
     file_map = specimen_map
 
-    if is_fasta_dir:
+    if fasta_flags.get("specimen"):
         return generate_haplotype_sheet_from_assemblies(specimen_dir, output_path=output_path)
 
     all_markers = set()
