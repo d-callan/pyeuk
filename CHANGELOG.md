@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-09-08
+
+### Fixed
+* **Genetic-distance heuristic (`compute_heuristic_distance`)**: an identical single-allele/haploid call was scored as maximally distant (4) and a mismatch as *less* distant (3) — the heuristic distance was inverted at haploid/mitochondrial loci. Replaced with a monotonic set dissimilarity on the [0, 4] scale (0 identical, 4 disjoint).
+* **Window haplotype calling (`window_haplotypes`)**: the insertion left-normalization tested the *reference* base instead of the aligned *read* base, so a substitution adjacent to an insertion was rewritten and two distinct molecules merged into one haplotype. It now tests the read base.
+* **Haplotype sheet assembly**: a shared `is_fasta_dir` flag set by the background collection misrouted (and could crash) the specimen path; the FASTA flag is now per-source. Plain-file read errors are warned rather than silently dropped, and a supplied `output_path` directory is created if missing.
+* **SNP-weighted wIBS**: allele frequencies were computed over all specimens instead of the locus-called specimens, deflating `p` under dropout.
+* **Clustering**: `calibrate_gold_standard_threshold` no longer mutates the caller's DataFrame; the non-robust calibration uses `ddof=1`; `find_clusters` tolerates missing (NaN) distances; the trivial-branch cluster count is clamped to the sample count.
+* **CLI**: `--robust` was `store_true`/`default=True` and could never be disabled — now `--robust/--no-robust`. `process-ont --de-novo` no longer writes empty output; it builds a consensus from the reads.
+* **Nanopore processing**: mean read quality is averaged over error probabilities rather than Phred scores; the reference match seed is taken from the center of the sequence rather than the shared 5' end.
+* **Micro-assembly**: the 3' primer is trimmed only at a 3'-proximal match, avoiding truncation at a spurious internal occurrence.
+* Deterministic reference-sequence ordering; the 2-specimen rank-integrated ensemble no longer collapses to a constant.
+
 ## [0.8.0] - 2026-09-06
 
 ### Added

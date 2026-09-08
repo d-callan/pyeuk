@@ -19,7 +19,7 @@ from .clustering import CyclosporaClusterFinder
 from .micro_assembly import JunctionMicroAssembler
 from .ont_processor import NanoporeAmpliconProcessor
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 __all__ = [
     "generate_haplotype_sheet",
     "generate_haplotype_sheet_from_assemblies",
