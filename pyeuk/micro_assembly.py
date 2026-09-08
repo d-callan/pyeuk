@@ -88,7 +88,7 @@ class JunctionMicroAssembler:
 
         # Find 3' end primer
         rev_idx = seq.rfind(self.PRIMER_3PRIME)
-        if rev_idx != -1:
+        if rev_idx != -1 and rev_idx >= len(seq) // 2:
             seq = seq[:rev_idx]
 
         return seq.strip()
@@ -135,7 +135,7 @@ class JunctionMicroAssembler:
 
         final_junction_seq = self.clean_and_trim_junction_contig(assembled_seq)
         repeat_len = len(final_junction_seq)
-        total_len = repeat_len + 43  # Total length including primers (21 + 22)
+        total_len = repeat_len + len(self.FORWARD_PRIMER) + len(self.PRIMER_3PRIME)  # repeat + both primers
 
         header = f">Mt_Cmt{total_len}.X_Junction_Hap_{specimen_name}"
         out_fasta = os.path.join(output_dir, f"{specimen_name}_validated_junction.fasta")

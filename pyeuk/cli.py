@@ -111,7 +111,7 @@ def main():
     cluster_parser.add_argument("-g", "--gold-clusters", required=False, default=None, help="Optional path to gold standard cluster reference list (for supervised mode)")
     cluster_parser.add_argument("-o", "--output-dir", default="outbreak_clusters", help="Output directory for resulting clusters")
     cluster_parser.add_argument("-s", "--stringency", type=float, default=95.0, help="Target threshold coverage percentage")
-    cluster_parser.add_argument("--robust", action="store_true", default=True, help="Use robust Median + 3*MAD threshold calibration")
+    cluster_parser.add_argument("--robust", action=argparse.BooleanOptionalAction, default=True, help="Use robust Median + 3*MAD threshold calibration (--no-robust to disable)")
     cluster_parser.add_argument("--k-min", type=int, default=2, help="Minimum number of clusters to search (default: 2)")
     cluster_parser.add_argument("--k-max", type=int, default=50, help="Maximum number of clusters to search (default: 50)")
     cluster_parser.add_argument("--relative-gap-floor", type=float, default=0.2200, help="Minimum relative merge-height gap fraction of tree height required for unsupervised knee selection (default: 0.2200)")
@@ -272,6 +272,17 @@ def main():
                 sys.exit(1)
 
         processor = NanoporeAmpliconProcessor(min_qscore=args.qscore)
+        if args.de_novo and not ref_db:
+            reads = []
+            with open(args.input_fastq) as _fh:
+                for _i, _line in enumerate(_fh):
+                    if _i % 4 == 1:
+                        reads.append(_line.strip())
+            consensus = processor.generate_ont_consensus(reads, args.sample_id) if reads else ""
+            if not consensus:
+                print("[Error] --de-novo could not build a consensus (no reads in input).", file=sys.stderr)
+                sys.exit(1)
+            ref_db = {f"{args.sample_id}_DeNovo_Hap_1": consensus}
         processor.match_ont_haplotypes(args.sample_id, args.input_fastq, ref_db, args.output_dir)
 
     elif args.command == "eukaryotyping":

@@ -93,6 +93,7 @@ class CyclosporaClusterFinder:
         """
         Calculates maximum allowed intra-cluster distance threshold using epidemiological gold standards.
         """
+        gold_df = gold_df.copy()
         gold_df.columns = [c.strip() for c in gold_df.columns]
         if "Seq_ID" not in gold_df.columns:
             gold_df.rename(columns={gold_df.columns[0]: "Seq_ID"}, inplace=True)
@@ -178,7 +179,7 @@ class CyclosporaClusterFinder:
                     mad = float(np.median(np.abs(a - med)))
                     t = med + 3.0 * 1.4826 * mad
                 else:
-                    t = float(np.mean(a) + 3.0 * np.std(a))
+                    t = float(np.mean(a) + 3.0 * np.std(a, ddof=1))
                 return float(t), f"calibrated from {len(within)} labelled within-cluster pairs"
 
         if len(vals) == 0:
@@ -268,6 +269,11 @@ class CyclosporaClusterFinder:
 
         dist_mat = dist_df.values.copy()
         np.fill_diagonal(dist_mat, 0.0)
+        if np.isnan(dist_mat).any():
+            finite = dist_mat[np.isfinite(dist_mat)]
+            fill = float(finite.max()) if finite.size else 1.0
+            dist_mat = np.where(np.isnan(dist_mat), fill, dist_mat)
+            np.fill_diagonal(dist_mat, 0.0)
         condensed_dist = squareform(dist_mat, checks=False)
 
         # Ward AGNES hierarchical clustering
@@ -477,7 +483,7 @@ class CyclosporaClusterFinder:
                         fail_summary = "; ".join(rejection_reasons[:3])
                         print(f"[ClusterFinder] Dendrogram Merge Height Gap Knee Detection: No valid partition (k in [{search_start}, {search_limit}]) met both relative gap floor ({rel_floor:.4f}) and cluster size guard ({min_required_size}). Rejections: {fail_summary}. Assigned k = 1 (Single Outbreak Group).")
             else:
-                correct_k = max(1, k_min)
+                correct_k = max(1, min(k_min, dist_df.shape[0]))
                 threshold = self.default_threshold
                 self.last_selection_meta = {
                     "status": "trivial",
@@ -883,6 +889,11 @@ class CyclosporaClusterFinder:
 
         dist_mat = dist_df.values.copy()
         np.fill_diagonal(dist_mat, 0.0)
+        if np.isnan(dist_mat).any():
+            finite = dist_mat[np.isfinite(dist_mat)]
+            fill = float(finite.max()) if finite.size else 1.0
+            dist_mat = np.where(np.isnan(dist_mat), fill, dist_mat)
+            np.fill_diagonal(dist_mat, 0.0)
         condensed_dist = squareform(dist_mat, checks=False)
 
         # Default to exact zero-distance identical genotype profile matching

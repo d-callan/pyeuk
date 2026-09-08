@@ -313,10 +313,10 @@ def left_normalize(obs, ref):
         moved = False
         for i in range(1, len(o)):
             ins = o[i][1:]
-            if ins and o[i][0] != "-" and ins[-1].upper() == ref[i].upper() \
+            if ins and o[i][0] != "-" and ins[-1].upper() == o[i][0].upper() \
                     and not o[i - 1][1:] and o[i - 1][0] != "-":
                 o[i] = o[i][0]
-                o[i - 1] = o[i - 1][0] + (ref[i].lower() if False else ins[-1]) + ins[:-1]
+                o[i - 1] = o[i - 1][0] + ins[-1] + ins[:-1]
                 moved = True
     return o
 

@@ -250,8 +250,9 @@ class PyEukDistanceEngine:
     ) -> pd.DataFrame:
         """
         Computes Reference-Free SNP-Weighted wIBS Distance Matrix (PyEuk v0.3.0).
-        Calculates de novo pairwise sequence alignment Hamming distances directly between called haplotype sequences,
-        eliminating reliance on external reference database files.
+        Calculates de novo pairwise sequence alignment Hamming distances directly between called haplotype sequences.
+        Sequences come from the provided sequence_map or fasta_path; only if neither is given does it fall back to
+        scanning a local cdc_reference_data/ directory, and with no sequences a shared locus call contributes 0.
         """
         import glob
         w_mode = (weight_mode or self.weight_mode).lower().replace("-", "_")
@@ -271,7 +272,7 @@ class PyEukDistanceEngine:
         elif fasta_path and os.path.exists(fasta_path):
             fpaths = [fasta_path]
         else:
-            fpaths = glob.glob("cdc_reference_data/**/*.fasta", recursive=True) + glob.glob("cdc_reference_data/**/*.fa", recursive=True)
+            fpaths = sorted(glob.glob("cdc_reference_data/**/*.fasta", recursive=True) + glob.glob("cdc_reference_data/**/*.fa", recursive=True))
 
         for fp in fpaths:
             if "Illumina" in fp or "MAPPING" in fp:
@@ -315,7 +316,8 @@ class PyEukDistanceEngine:
         locus_weights = {}
         for loc, cols in locus_map.items():
             sub = (clean_df[cols].values == "X").astype(np.float64)
-            p_j = sub.mean(axis=0)
+            called = sub.sum(axis=1) > 0
+            p_j = sub[called].mean(axis=0) if called.any() else np.zeros(sub.shape[1], dtype=np.float64)
             w_cols = np.zeros(len(p_j), dtype=np.float64)
             for k, p_val in enumerate(p_j):
                 if 0.0 < p_val < 1.0:
@@ -519,14 +521,7 @@ class PyEukDistanceEngine:
                     shared = set(v1) & set(v2)
                     y = len(shared)
 
-                    if ploidy > 1:
-                        w = x * (n_min > 1) + 4 * (n_min == 1 and x == 2) + (1 + x) * (n_min == 1 and x > 2)
-                        z = 3 * (y == 1 and n_min == 1 and x > 2) + 2 * (y > 0 and n_min > 1)
-                        delta_raw = w if y == 0 else (4.0 - z)
-                    else:
-                        w = x * (n_min > 1) + (1 + x) * (n_min == 1 and x > 1)
-                        z = 3 * (y == 1 and n_min == 1 and x > 1) + 2 * (y > 0 and n_min > 1)
-                        delta_raw = w if y == 0 else (4.0 - z)
+                    delta_raw = 4.0 * (1.0 - (y / x)) if x > 0 else 0.0
 
                     d_final = h_val * delta_raw
                     locus_dists[j, i1, i2] = d_final
@@ -614,6 +609,9 @@ class PyEukDistanceEngine:
         triu_idx = np.triu_indices(nids, k=1)
         v1 = D1[triu_idx]
         v2 = D2[triu_idx]
+
+        if len(v1) < 2:
+            return 0.5 * (D1 + D2)
 
         r1 = rankdata(v1, method="average") / len(v1)
         r2 = rankdata(v2, method="average") / len(v2)

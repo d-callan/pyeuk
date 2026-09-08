@@ -590,9 +590,8 @@ def main(argv=None):
         anchor[c] = anch
         print(log, file=sys.stderr)
 
-    # Emit over the SPANNABLE CORE, not the covered interval. bounds[c] holds the core
-    # once the placement search has run; it falls back to the median of the per-specimen
-    # covered bounds, which is robust to one deep or one shallow BAM.
+    # Emit over the full COVERED interval (bounds[c] = (lo_c, hi_c), set above), tiling from
+    # the spannable core's start so the phase is anchored to where reads begin to span.
     fh = sys.stdout if a.out == "-" else open(a.out, "w")
     n = 0
     for c in sorted(lo_all):
