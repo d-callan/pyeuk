@@ -1,189 +1,183 @@
-# PyEuk: Modern Eukaryotic & Microbial MLST Typing & Outbreak Detection
+# PyEuk: A Tool Suite for Catalogue-Free Multilocus Typing
 
 <img src="docs/images/pyeuk_logo.jpg" align="right" width="140" alt="PyEuk Logo" />
 
-[![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](https://github.com/spond/pyeuk)
+[![Version](https://img.shields.io/badge/version-0.8.1-blue.svg)](https://github.com/veg/pyeuk)
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](https://bioconda.github.io/recipes/pyeuk/README.html)
 [![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-orange.svg)](LICENSE)
 [![Speedup](https://img.shields.io/badge/speedup-99.2x-brightgreen.svg)]()
 
-**PyEuk** is a high-performance Python framework for molecular typing, genetic distance estimation, and foodborne/waterborne outbreak cluster detection in eukaryotic and microbial pathogens (including ***Cyclospora cayetanensis***, ***Cryptosporidium parvum / hominis***, and general MLST/cgMLST schemes).
+**PyEuk** is an end-to-end Python framework for unsupervised, catalogue-free multilocus microhaplotyping, pairwise genetic distance evaluation, and transmission cluster delineation in eukaryotic and microbial pathogens (including ***Cyclospora cayetanensis***, ***Plasmodium vivax***, ***Cryptosporidium***, and general amplicon panels).
 
-It replaces legacy, brittle heuristics with a fast, mathematically rigorous distance engine, reference-free de novo locus discovery, and automated label-free hierarchical clustering.
-
----
-
-## 🚀 Core Driver Features
-
-### 1. Universal Ingestion & Reference-Free De Novo Discovery
-* **External Assembly Ingestion (`-a / --assembled-fasta`)**: Directly ingest assembled FASTA contigs from SPAdes, Flye, MEGAHIT, or Galaxy pipelines without manual BLAST parsing.
-* **Reference-Free De Novo Discovery (`--de-novo`)**: Discover homologous loci and phased haplotypes directly from sequence contigs without requiring pre-existing reference databases.
-* **Deterministic Naming Scheme**: Mints content-addressable identifiers (`<Locus>_L<Length>bp.H<Rank>_<Hash4>`, e.g., `Nu_378_L245bp.H01_508B` or `gp60_L752bp.H01_9180`) embedding locus anchor, amplicon length, cohort frequency rank, and an MD5 sequence hash for global cross-lab reproducibility.
-
-### 2. Dropout-Robust Genetic Distance Engine
-* **KING-Weighted Identity-by-State (wIBS)**: Evaluates pairwise genetic dissimilarity across multi-locus marker panels, properly weighting population allele frequencies and handling co-infections.
-* **Pairwise-Complete Dropout Tolerance**: Dissimilarity is computed only over mutually amplified loci, preventing PCR sequencing dropouts from triggering artificial distance spikes.
-* **Gram Matrix PSD Projection**: Guarantees positive semi-definite Euclidean metric geometry (`λ_min >= 0.0`) for valid, mathematically sound Ward hierarchical clustering.
-* **Vectorized Acceleration**: Accelerated via vectorized NumPy and Numba JIT kernels (**99.2× faster** than legacy R scripts, processing 1,000+ specimens in seconds).
-
-### 3. Label-Free Clustering with a Sweep Diagnostic
-* **Reports a range, not a forced number**: `cluster` runs a bootstrap **sweep** by default. It reports the *range* of cluster counts the data supports, **whether that count is determined** (do the independent count selectors agree?), a per-branch **confidence tree** (solid = a split the data reproduces, faded/dashed = uncertain), and the **stable cores** (specimen groups reproduced across resamples). A single number is emitted only when the selectors concur; otherwise a range — so the tool never invents a cutoff the data does not support.
-* **Deterministic & unsupervised**: no labels and no training; deterministic for a fixed seed via lexicographical tie-breaking.
-* **Legacy single-k still available**: `--single-k` restores the classic single-partition cut (merge-height-gap knee, `rel_gap >= 0.2200`, with cohort-size guards) for downstream steps that need one flat assignment.
-* **Graphical report**: `--report` (or `pyeuk report`) turns the sweep into a self-contained HTML dashboard — see below.
+Unlike classical bacterial MLST or centralized variant registries that founder when confronting eukaryotic parasites characterized by meiotic recombination, extensive polyclonality, copy-number variation, or missing primer schemes, PyEuk decouples typing from pre-existing allele catalogues:
+* **Physical Within-Molecule Phasing**: Observes exact nucleotide sequences directly from continuous physical reads spanning target genomic windows end-to-end, preserving physical phase without statistical imputation.
+* **Catalogue-Free & Coordinate-Free**: Discovers target amplicon panels *de novo* from raw read coverage peaks (`derive-panel`) and determines data-adaptive sub-amplicon analysis windows (`define-windows`) directly from sequencing data.
+* **Dropout-Tolerant Genetic Distance Engine**: Computes continuous heterozygosity-weighted Identity-by-State (wIBS) genetic divergence strictly over mutually amplified loci, eliminating artificial distance spikes caused by PCR dropouts.
+* **Stability-Guided Clustering & Sweeps**: Runs bootstrap partition stability sweeps to report confidence intervals (`[k_min, k_max]`) and reproducible transmission cores ($\ge 90\%$ bootstrap co-assignment) instead of forcing arbitrary cutoffs.
+* **Accessible Ecosystem**: Available via [Bioconda](https://bioconda.github.io/recipes/pyeuk/README.html), pre-built [BioContainers](https://quay.io/repository/biocontainers/pyeuk), and companion Galaxy workflows via the [Intergalactic Workflow Commission (IWC)](https://iwc.galaxyproject.org/).
 
 ---
 
-## 📂 Input & Output Formats
+## 🚀 Core Capabilities
 
-### 📥 Inputs (Choose One)
+### 1. Catalogue-Free Microhaplotyping from Spanning Reads
+* **Direct Physical Phase**: A read contributes to a haplotype call if and only if its alignment spans the target window interval $[pos_{\text{start}}, pos_{\text{end}}]$ end-to-end. Spanning reads directly distinguish co-infecting lineages from multi-mutant haplotypes without relying on statistical phasing.
+* **Deterministic Variant Naming**: Mints content-derived, HGVS-like identifiers describing differences relative to reference coordinates (`45T>A,57T>C` denotes two differences; `=` denotes reference match). Identical sequences receive identical names without needing a central registry.
+* **Mixture-Aware**: Preserves per-haplotype read frequencies within specimens, natively accommodating polyclonal mixtures and gene dosage variation.
 
-PyEuk accepts either **raw assembled sequence contigs** or **genotype call lists**:
+### 2. Panel Discovery & Data-Adaptive Analysis Windows
+* **De Novo Panel Inference (`pyeuk derive-panel`)**: When primer schemes or target coordinates are omitted from sequence repositories, `derive-panel` reconstructs panel FASTA targets *de novo* from contiguous coverage peaks against a draft genome assembly.
+* **Data-Adaptive Window Placement (`pyeuk define-windows`)**: Automatically scans cohort BAMs to identify the widest spannable genomic intervals that clear coverage and spanning thresholds, avoiding primer artifacts and optimizing haplotype yield.
 
-#### Option A: Assembled FASTA Contigs (`-a / --assembled-fasta`)
-Directly pass assembled contigs from SPAdes, Flye, MEGAHIT, or Galaxy pipelines (as a multi-FASTA, directory of FASTAs, or `.zip`). Headers format as `>SampleID|Locus` or `>SampleID_Contig`:
+### 3. Locus-Dropout-Tolerant Genetic Distance Engine
+* **Heterozygosity-Weighted IBS (wIBS)**: Evaluates pairwise genetic dissimilarity across multi-locus panels, weighting columns by population heterozygosity ($w = 2p(1-p)$) to prioritize balanced, outbreak-discriminating variants while attenuating rare singletons.
+* **Pairwise-Complete Dropout Tolerance**: Computes distance strictly over mutually amplified loci, preventing PCR sequencing dropouts from triggering artificial distance spikes.
+* **Positive Semi-Definite (PSD) Metric Projection**: Projects the distance Gram matrix to guarantee valid Euclidean metric geometry ($\lambda_{\text{min}} \ge 0.0$) for mathematically sound Ward hierarchical clustering.
+* **High-Throughput Vectorization**: Evaluates pairwise distances across 8,000+ national surveillance isolates in under 4 minutes on a standard workstation.
 
-```fasta
->C_IL049_18|Nu_378
-ATGCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGA
->CH_MN_01|gp60
-ATGTCTTCTGCTGCTGCAGCATCATCATCATCATCATCATCATCATCAGGA
-```
+### 4. Stability-Guided Clustering & Sweep Diagnostic
+* **Reports a Range, Not a Forced Number**: Runs a bootstrap sweep across resampled loci and reports the range of cluster counts the data supports, a per-branch confidence tree (solid = reproduced, dashed = uncertain), and reproducible transmission cores ($\ge 90\%$ bootstrap co-assignment).
+* **Dual Partitioning Regimes**:
+  * `--cut count` (Outbreak Mode): Chooses optimal cluster count from the largest merge-height gap; ideal for bounded point-source traceback investigations.
+  * `--cut distance` (Surveillance Mode): Cuts at a fixed dissimilarity threshold ($d$), returning sporadic background specimens as singletons—ideal for continuous open surveillance archives.
+* **Lexicographical Tie-Breaking**: Completely deterministic cluster assignments for reproducible public health reporting.
 
-#### Option B: Specimen Genotype Call Files (`-s / --specimen-dir`)
-Directory or `.zip` archive containing one text file per specimen, listing detected marker alleles:
-
-```text
-# Example: example_data/specimens/C_IL049_18.txt
-Nu_378_PART_A_Hap_4
-Nu_360i2_PART_A_Hap_1
-Mt_MSR_PART_A_Hap_1
-Nu_CDS1_PART_A_Hap_2
-```
+### 5. Self-Contained Visual Reports (`pyeuk report`)
+* **Standalone HTML Dashboards**: Converts sweep outputs into self-contained HTML dashboards with embedded inline SVG confidence trees, bootstrap stability charts, and optional distance heatmaps—with zero external JavaScript or CDN dependencies, safe for Galaxy embedding.
+* **Multiple Flavors**: `dashboard` (interactive summary), `clinical` (concise one-page verdict), and `narrative` (prose walkthrough of data support).
 
 ---
 
-### 📤 Outputs
+## 🛠 Command Hierarchy
 
-Every PyEuk run produces clean, standard tabular files in the specified output directory (`-o`):
+PyEuk provides a modular five-stage command hierarchy alongside upstream panel discovery and downstream visual reporting:
 
-| Output File | Format | Description |
-| :--- | :--- | :--- |
-| **`haplotype_data_sheet.txt`** | TSV Matrix | Binary presence/absence matrix (`Seq_ID` × Markers, with `X` = present). |
-| **`ensemble_distance_matrix.csv`** | CSV Matrix | Pairwise KING-wIBS genetic distance matrix (`0.0 = identical`, `1.0 = divergent`). |
-| **`RESULTING_CLUSTERS_<k>.txt`** | TSV Table | Final outbreak cluster assignments (`Seq_ID` → `Assigned_cluster`). |
-| **`learned_refs.fasta`** *(De Novo)* | FASTA | Representative sequences of all unique alleles discovered in the cohort. |
+| Command | Stage | Input | Output | Description |
+| :--- | :---: | :--- | :--- | :--- |
+| **`pyeuk derive-panel`** | Pre-processing | Genome-mapped BAMs + Genome FASTA | `panel.fasta`, `panel.bed` | Reconstructs amplicon target panel *de novo* from raw read coverage peaks |
+| **`pyeuk define-windows`** | Stage 1 | Panel FASTA + Cohort BAMs | `windows.bed` | Derives optimal sub-amplicon analysis windows across cohort read alignments |
+| **`pyeuk call-haplotypes`** | Stage 2 | Specimen BAM + Panel FASTA + `windows.bed` | `calls/<specimen>.tsv` | Calls exact phased microhaplotypes per specimen from end-to-end spanning reads |
+| **`pyeuk build-sheet`** | Stage 3 | `calls/` directory | `haplotype_data_sheet.txt` | Assembles multi-specimen calls into a binary presence/absence matrix |
+| **`pyeuk eukaryotyping`** | Stage 4 | `haplotype_data_sheet.txt` | `distance_matrix.csv` | Computes pairwise locus-dropout-tolerant, weighted IBS genetic distances |
+| **`pyeuk cluster`** | Stage 5 | `distance_matrix.csv` | `RESULTING_CLUSTERS_*.txt`, `*_SWEEP.json` | Performs hierarchical clustering with partition stability sweep and core detection |
+| **`pyeuk report`** | Reporting | `*_SWEEP.json` + `distance_matrix.csv` | `report.html` | Renders a self-contained interactive visual HTML dashboard |
 
 ---
 
 ## 📦 Installation
 
-### Via Bioconda
+### Option 1: Via Bioconda (Recommended)
 ```bash
 conda install -c bioconda -c conda-forge pyeuk
 ```
 
-### From source
+### Option 2: Pre-built Container Images
+Public container images with all dependencies (including `pysam`) are available via BioContainers:
 ```bash
-git clone https://github.com/spond/pyeuk.git
-cd pyeuk
-pip install -e .
+# Docker
+docker pull quay.io/biocontainers/pyeuk:0.8.1--pyhdfd78af_0
+
+# Apptainer / Singularity
+apptainer exec docker://quay.io/biocontainers/pyeuk:0.8.1--pyhdfd78af_0 pyeuk --help
 ```
 
-*Commands `pyeuk` and `cyclospora-typing` are both available.*
+### Option 3: From Source
+```bash
+git clone https://github.com/veg/pyeuk.git
+cd pyeuk
+
+# Core installation
+pip install -e .
+
+# With BAM/read-level amplicon processing dependencies (pysam):
+pip install -e '.[amplicon]'
+
+# With graphical HTML report heatmap rendering (Pillow):
+pip install -e '.[report]'
+```
 
 ---
 
 ## ⚡ Quickstart
 
-### 1. Run Pipeline on *Cyclospora* Genotype Calls
+### Standard Amplicon Workflow (BAMs to Transmission Cores)
+
 ```bash
-# Run on directory of specimen call files (or .zip archive)
+# Optional: derive target panel de novo from coverage peaks if coordinates are unknown
+pyeuk derive-panel ref_genome.fasta --bams bams/*.bam -o derived_panel.fasta
+
+# 1. Define cohort-wide analysis windows from read alignments
+pyeuk define-windows panel.fasta --bams bams/*.bam -o windows.bed
+
+# 2. Call physically phased microhaplotypes for each specimen
+mkdir -p calls
+for bam in bams/*.bam; do
+    sample=$(basename "$bam" .bam)
+    pyeuk call-haplotypes --bam "$bam" --ref panel.fasta --specimen "$sample" \
+        --bed windows.bed --out "calls/${sample}.tsv"
+done
+
+# 3. Assemble binary specimen-by-haplotype presence/absence matrix
+pyeuk build-sheet calls/ output_matrix/
+
+# 4. Calculate pairwise dropout-tolerant weighted IBS distances
+pyeuk eukaryotyping -i output_matrix/haplotype_data_sheet.txt \
+    -o distance_matrix.csv --wibs
+
+# 5. Run hierarchical clustering with partition stability sweep
+pyeuk cluster -m distance_matrix.csv -o clusters_detected/
+
+# 6. Render visual HTML dashboard report
+pyeuk report clusters_detected/*_SWEEP.json -o report.html --matrix distance_matrix.csv
+```
+
+---
+
+### Alternative Ingestion Modes
+
+PyEuk also supports rapid end-to-end execution on assembled contigs or legacy genotype calls:
+
+```bash
+# Ingest assembled FASTA contigs reference-free de novo
+pyeuk run-all \
+    -a example_data/cohort_contigs.fasta \
+    --de-novo \
+    -o ./de_novo_results
+
+# Ingest directory of specimen call files (or .zip)
 pyeuk run-all \
     -s example_data/specimens \
     -g example_data/gold_clusters.tsv \
     -o ./cyclospora_outbreak_results
 ```
 
-### 2. Ingest Assembled FASTA Contigs (Reference-Free De Novo)
-```bash
-# Ingest Cyclospora assembled contigs and discover haplotypes de novo
-pyeuk run-all \
-    -a example_data/cohort_contigs.fasta \
-    --de-novo \
-    -o ./de_novo_results
-```
+---
 
-### 3. Run on *Cryptosporidium* Multi-Locus Outbreak Cohort
-```bash
-# Ingest Cryptosporidium multi-locus contigs (gp60, COWP, 18S, HSP70) reference-free
-pyeuk run-all \
-    -a example_data/cryptosporidium/cohort_contigs.fasta \
-    --de-novo \
-    -g example_data/cryptosporidium/gold_clusters.tsv \
-    -o ./crypto_outbreak_results
-```
+## 📊 Empirical Surveillance & Clinical Validation Cohorts
 
-### 4. Run on *Giardia duodenalis* 3-Locus MLST Cohort
-```bash
-# Ingest Giardia multi-locus contigs (tpi, gdh, bg) reference-free
-pyeuk run-all \
-    -a example_data/giardia/cohort_contigs.fasta \
-    --de-novo \
-    -g example_data/giardia/gold_clusters.tsv \
-    -o ./giardia_outbreak_results
-```
+PyEuk has been rigorously evaluated across surveillance and clinical validation cohorts spanning multiple eukaryotic pathogen species and epidemiological study designs:
 
-### 5. Modular Step-by-Step CLI Commands
-```bash
-# Step 1: Generate binary presence/absence haplotype sheet
-pyeuk generate-sheet -s example_data/specimens -o haplotype_sheet.txt
+| Cohort | BioProject | Panel | Loci | Specimens | Epidemiological Task | PyEuk Findings |
+| :--- | :--- | :--- | :---: | :---: | :--- | :--- |
+| ***Cyclospora* 2018 Outbreak** | PRJNA578931 | CDC 8-marker / Derived 6-amplicon | 7 / 6 | 153 | Resolving binary traceback distribution chains | Complete separation of Vendor A vs B (ARI = 0.9737 curated, 1.0000 derived; $[2, 2]$ decisive sweep). |
+| ***Cyclospora* FDA TAS** | PRJNA1052691 | Derived 45-amplicon panel | 45 | 66 (99 archive) | Multi-cluster recovery without reference coordinates | Reconstructs 24 published outbreak clusters coordinate-free (ARI = 0.8408; 16 stable transmission cores). |
+| ***Cyclospora* Surveillance Archive** | PRJNA578931 | 9 CDC genomic loci | 9 | 8,325 (8,058 retained) | Scaling transmission discovery across national archive | Delineates 283 reproducible cores ($\ge 90\%$ bootstrap) and separates tripartite species divergence (*Ccay* A, B, C; <4 min distance computation). |
+| ***P. vivax* PvAmpSeq** | PRJNA1153071 | 11 microhaplotype markers | 11 | 277 | Continental divergence & clinical recurrence | Separates Peru vs Solomon Islands (ARI = 0.9712); classifies relapse vs reinfection with 92.9% accuracy (AUC = 0.9608). |
+| ***P. vivax* CDC AmpliSeq** | PRJNA1092573 | 495 amplicons (444 retained) | 444 | 196 (169 retained) | Singleton-dominated open surveillance | Distance-mode cut ($d = 0.0869$) replicates published structure (ARI = 0.8063) while preserving background singletons. |
 
-# Step 2: Compute pairwise Weighted IBS distance matrix
-# Uses default Heterozygosity weighting (w = 2p(1-p)) optimized for presence/absence indicators
-pyeuk eukaryotyping -i haplotype_sheet.txt -o distance_matrix.csv --wibs
-
-# Optional: Configure weighting scheme, minor allele filtering, or raw non-projected matrix
-# pyeuk eukaryotyping -i haplotype_sheet.txt -o distance_matrix.csv --wibs --weight-mode inverted-king --min-maf 0.05 --no-psd
-
-# Step 3: Run prospective outbreak clustering
-pyeuk cluster -m distance_matrix.csv -o clusters_detected
-
-# Step 4 (optional): render a graphical HTML report from the sweep
-pyeuk report clusters_detected/*_SWEEP.json -o report.html --matrix distance_matrix.csv
-```
+### Computational Performance & Metric Rigor
+* **Distance Engine Speedup**: Vectorized calculation over compressed sparse matrices processes N = 1,078 national surveillance specimens in **14.9 seconds** (vs 24.6 minutes in legacy scripts; **99.2× speedup**), scaling to 8,058 isolates in under 4 minutes on a standard 16-core workstation.
+* **Amplicon Front-End Speedup**: Single-pass, thread-parallel window selection in `define-windows` delivers a **~10× speedup** on deep panels (e.g. 66-BAM *Cyclospora* cohort runtime reduced from ~2.4 hours to ~14 minutes, byte-identical output); `call-haplotypes` utilizes a deletion-neighborhood (SymSpell) index for fast, lossless denoise folding.
+* **Positive Semi-Definite Metric Validity**: Gram matrix PSD projection guarantees $\lambda_{\text{min}} \ge 0.0$ across pairwise distance matrices, eliminating negative eigenvalue distortions and ensuring mathematically sound Ward hierarchical clustering (raw non-projected distances exported via `--no-psd`).
 
 ---
 
-## 📈 Graphical Reports (`pyeuk report`)
+## 🌌 Galaxy Workflows
 
-The `cluster` sweep writes a machine-readable `*_SWEEP.json` (count range, confidence, per-branch confidence tree, stable cores, and the k-sweep table). `pyeuk report` turns that JSON into a **single self-contained HTML file** — no JavaScript, charts as inline SVG, and the optional distance heatmap embedded as a PNG.
-
-```bash
-# Render a report from an existing sweep (dashboard flavor, studio theme)
-pyeuk report clusters_detected/2026-08-26_SWEEP.json -o report.html \
-    --matrix distance_matrix.csv
-
-# Or emit the report in the same step as the sweep
-pyeuk cluster -m distance_matrix.csv -o clusters_detected --report
-```
-
-**Flavors** (`--flavor`): `dashboard` (default — at-a-glance tiles + confidence tree + count sweep + distance heatmap), `clinical` (single-page verdict report), and `narrative` (a prose walkthrough of what the data supports). A **confident** cohort is reported as a single green number; a **fuzzy** cohort as an amber range. Stable cores are drawn directly on the tree as numbered bars.
-
-**Themes** (`--theme`):
-* `studio` (default) — Fraunces/Inter via a Google Fonts link; best for standalone viewing.
-* `galaxy` — Galaxy's system-font stack and brand palette with **zero external assets** (no CDN, no web fonts), for embedding inside Galaxy.
-
-The heatmap needs the optional [Pillow](https://python-pillow.org/) dependency:
-
-```bash
-pip install 'pyeuk[report]'
-```
-
-If Pillow is absent, the report still renders — the heatmap panel is replaced with a short note rather than failing.
-
-> **Embedding in Galaxy.** Galaxy sanitizes tool-generated HTML by default, so an `html` dataset renders as raw markup unless its producing tool is on the `sanitize_all_html` allowlist (configured via `sanitize_allowlist_file` in `galaxy.yml`). The report is deliberately built to be safe to allowlist: use `--theme galaxy` so it is **self-contained, JavaScript-free, and references no external assets**, then add the report-producing tool's `tool_id` to `sanitize_allowlist_file` so Galaxy serves the HTML as-is.
+Companion Galaxy workflows for automated, reproducible end-to-end analysis are maintained and distributed through the **Intergalactic Workflow Commission (IWC)**:
+* **Workflow Registry**: [https://iwc.galaxyproject.org/](https://iwc.galaxyproject.org/)
+* Workflows integrate seamlessly into public Galaxy instances ([usegalaxy.org](https://usegalaxy.org), [usegalaxy.eu](https://usegalaxy.eu), [usegalaxy.org.au](https://usegalaxy.org.au)), allowing researchers to ingest raw SRA/FASTQ accessions, derive panels, call microhaplotypes, evaluate genetic distances, and view interactive HTML reports directly in the browser.
 
 ---
 
@@ -193,23 +187,19 @@ If Pillow is absent, the report still renders — the heatmap panel is replaced 
 import pandas as pd
 from pyeuk import (
     generate_haplotype_sheet,
-    learn_de_novo_haplotypes,
     PyEukDistanceEngine,
     CyclosporaClusterFinder
 )
 
-# 1. Option A: Ingest standard genotype calls (or specimens.zip)
+# 1. Ingest specimen calls or generated sheet
 sheet_df = generate_haplotype_sheet("example_data/specimens")
 
-# 1. Option B: Discover haplotypes reference-free from Giardia, Cryptosporidium, or Cyclospora contigs
-# sheet_df, learned_refs = learn_de_novo_haplotypes("example_data/giardia/cohort_contigs.fasta")
-
-# 2. Compute Weighted IBS distance matrix (default: Heterozygosity w = 2p(1-p))
+# 2. Compute Weighted IBS distance matrix (Heterozygosity w = 2p(1-p))
 engine = PyEukDistanceEngine(weight_mode="heterozygosity", min_maf=0.0, project_psd=True)
 clean_df = engine.process_haplotype_sheet(sheet_df)
 dist_df = engine.compute_revised_wibs_matrix(clean_df)
 
-# 3. Detect outbreak clusters automatically (unsupervised)
+# 3. Detect transmission clusters and evaluate partition stability
 finder = CyclosporaClusterFinder()
 clusters_df, k, thresh = finder.find_clusters(dist_df, output_dir="results")
 
@@ -218,28 +208,18 @@ print(f"Detected {k} outbreak clusters across {len(clusters_df)} specimens.")
 
 ---
 
-## 📊 Performance & Validation Highlights
-
-| Benchmark Dataset | Pathogen | Specimen Count (N) | Outbreaks (k) | PyEuk wIBS ARI | Plain Hamming Baseline ARI | Notes |
-| :--- | :--- | :---: | :---: | :---: | :---: | :--- |
-| **CDC Outbreak Benchmark** | *Cyclospora cayetanensis* | 153 | **k = 2** | **1.0000** | 0.8124 | 99.1% sensitivity, 98.1% specificity against CDC surveillance |
-| **Expanded Surveillance Cohort** | *Cyclospora cayetanensis* | 203 | **k = 2** | **1.0000** | 0.8402 | Perfect 1-to-1 recovery of multi-state outbreaks |
-| **Cryptosporidium MLST Panel (Synthetic)** | *Cryptosporidium hominis/parvum* | 24 | **k = 4** | **1.0000** *(complete & ward)* | **0.6503** *(complete)* / **0.8836** *(ward)* | Synthetic mosaic benchmark constructed from GenBank references ([`PROVENANCE.md`](example_data/cryptosporidium/PROVENANCE.md)) |
-| **Giardia MLST Benchmark (Synthetic)** | *Giardia duodenalis* | 20 | **k = 2** | **1.0000** | 1.0000 | Synthetic Assemblage A vs B fixture constructed from GenBank references ([`PROVENANCE.md`](example_data/giardia/PROVENANCE.md)) |
-| **De Novo Reference-Free Run** | *Cyclospora cayetanensis* | 11 | **k = 2** | **1.0000** | 0.8182 | 100% concordance with 0 reference database guidance |
-
-* **Presence/Absence Indicator Weighting**: PyEuk defaults to Heterozygosity weighting ($w = 2p(1-p)$) for binary indicator sheets, concentrating weight on balanced, outbreak-discriminating columns while gracefully attenuating rare singletons. Also supports Inverted KING ($w = \sqrt{p(1-p)}$), Legacy Dosage KING ($w = 1/\sqrt{p(1-p)}$), and Uniform weighting ($w = 1.0$), with optional MAF filtering (`--min-maf`).
-* **Benchmarking Non-Triviality (Synthetic Panels)**: On the synthetic *Cryptosporidium* panel, all single-locus ARIs are < 0.47 (18S: 0.465, HSP70: 0.213, COWP: 0.335, gp60: 0.357). Under complete linkage, unweighted plain Hamming drops to **ARI = 0.6503**, while PyEuk wIBS achieves **ARI = 1.0000**, proving that multi-locus frequency weighting recovers structure inaccessible to unweighted presence/absence matrices.
-* **Speedup**: Distance matrix computation on N = 1,078 national surveillance specimens drops from **24.6 minutes to 14.9 seconds** (99.2× faster).
-* **Amplicon front-end speedup**: `define-windows` is single-pass and process-parallel (**≈10×** on deep panels — a 66-BAM *Cyclospora* cohort drops from ~2.4 h to ~14 min, byte-identical output); `call-haplotypes` replaces the O(unique²) denoise fold with a deletion-neighbourhood (SymSpell) index (**lossless**, removing the high-diversity long tail), with optional per-window read subsampling (`--max-reads-per-window`).
-* **Metric Validity**: Gram matrix PSD projection guarantees `λ_min >= 0.0` across both wIBS and Ensemble distance matrices, eliminating distorted hierarchical tree geometries, with raw pairwise distance export supported via `--no-psd`.
-
----
-
 ## 🌐 Genomic Resources & Documentation
 
 * 🧬 **UCSC BRC-Analytics Pathogen Portal**: [brc-analytics.org](https://brc-analytics.org/) — Reference genome tracks, gene models, and visual browser hubs for *Cyclospora cayetanensis* assemblies ([`GCA_002893315.1`](https://genome.ucsc.edu/cgi-bin/hgTracks?db=GCA_002893315.1) and [`GCA_002893485.1`](https://genome.ucsc.edu/cgi-bin/hgTracks?db=GCA_002893485.1)).
 * 📄 **Technical Reports**: Detailed mathematical audits and validation documents are available in the [`docs/`](docs/) directory.
+
+---
+
+## 📄 Citation
+
+If you use PyEuk in your research, please cite:
+
+> Kosakovsky Pond SL, Callan D, Nekrutenko A. **PyEuk: a tool suite for catalogue-free multilocus typing.** (2026).
 
 ---
 
