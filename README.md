@@ -3,6 +3,7 @@
 <img src="docs/images/pyeuk_logo.jpg" align="right" width="140" alt="PyEuk Logo" />
 
 [![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](https://github.com/spond/pyeuk)
+[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](https://bioconda.github.io/recipes/pyeuk/README.html)
 [![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-orange.svg)](LICENSE)
 [![Speedup](https://img.shields.io/badge/speedup-99.2x-brightgreen.svg)]()
@@ -78,6 +79,12 @@ Every PyEuk run produces clean, standard tabular files in the specified output d
 
 ## 📦 Installation
 
+### Via Bioconda
+```bash
+conda install -c bioconda -c conda-forge pyeuk
+```
+
+### From source
 ```bash
 git clone https://github.com/spond/pyeuk.git
 cd pyeuk
