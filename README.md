@@ -2,7 +2,7 @@
 
 <img src="docs/images/pyeuk_logo.jpg" align="right" width="140" alt="PyEuk Logo" />
 
-[![Version](https://img.shields.io/badge/version-0.8.1-blue.svg)](https://github.com/veg/pyeuk)
+[![Version](https://img.shields.io/github/v/release/veg/pyeuk?color=blue&label=version)](https://github.com/veg/pyeuk/releases/tag/v0.8.1)
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](https://bioconda.github.io/recipes/pyeuk/README.html)
 [![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-orange.svg)](LICENSE)
@@ -17,6 +17,12 @@ Unlike classical bacterial MLST or centralized variant registries that founder w
 * **Stability-Guided Clustering & Sweeps**: Runs bootstrap partition stability sweeps to report confidence intervals (`[k_min, k_max]`) and reproducible transmission cores ($\ge 90\%$ bootstrap co-assignment) instead of forcing arbitrary cutoffs.
 * **Accessible Ecosystem**: Available via [Bioconda](https://bioconda.github.io/recipes/pyeuk/README.html), pre-built [BioContainers](https://quay.io/repository/biocontainers/pyeuk), and companion Galaxy workflows via the [Intergalactic Workflow Commission (IWC)](https://iwc.galaxyproject.org/).
 
+<p align="center">
+  <img src="docs/images/pyeuk_workflows.png" width="92%" alt="PyEuk Workflows Architecture" />
+</p>
+
+*Figure 1: The two PyEuk analytical pipelines: (A) Standard amplicon workflow when target panels are known, and (B) Panel-Inference workflow reconstructing amplicon targets de novo from raw read coverage peaks when primer coordinates are missing.*
+
 ---
 
 ## 🚀 Core Capabilities
@@ -25,6 +31,12 @@ Unlike classical bacterial MLST or centralized variant registries that founder w
 * **Direct Physical Phase**: A read contributes to a haplotype call if and only if its alignment spans the target window interval $[pos_{\text{start}}, pos_{\text{end}}]$ end-to-end. Spanning reads directly distinguish co-infecting lineages from multi-mutant haplotypes without relying on statistical phasing.
 * **Deterministic Variant Naming**: Mints content-derived, HGVS-like identifiers describing differences relative to reference coordinates (`45T>A,57T>C` denotes two differences; `=` denotes reference match). Identical sequences receive identical names without needing a central registry.
 * **Mixture-Aware**: Preserves per-haplotype read frequencies within specimens, natively accommodating polyclonal mixtures and gene dosage variation.
+
+<p align="center">
+  <img src="docs/images/window_haplotype_encoding.png" width="88%" alt="Window Haplotype Encoding" />
+</p>
+
+*Figure 2: The window microhaplotype unit of analysis. Only continuous sequencing reads spanning every base of the target window interval contribute a haplotype call. Differences relative to the reference sequence are encoded deterministically (e.g., `45T>A,57T>C` or `=` for reference match).*
 
 ### 2. Panel Discovery & Data-Adaptive Analysis Windows
 * **De Novo Panel Inference (`pyeuk derive-panel`)**: When primer schemes or target coordinates are omitted from sequence repositories, `derive-panel` reconstructs panel FASTA targets *de novo* from contiguous coverage peaks against a draft genome assembly.
@@ -165,6 +177,12 @@ PyEuk has been rigorously evaluated across surveillance and clinical validation 
 | ***Cyclospora* Surveillance Archive** | PRJNA578931 | 9 CDC genomic loci | 9 | 8,325 (8,058 retained) | Scaling transmission discovery across national archive | Delineates 283 reproducible cores ($\ge 90\%$ bootstrap) and separates tripartite species divergence (*Ccay* A, B, C; <4 min distance computation). |
 | ***P. vivax* PvAmpSeq** | PRJNA1153071 | 11 microhaplotype markers | 11 | 277 | Continental divergence & clinical recurrence | Separates Peru vs Solomon Islands (ARI = 0.9712); classifies relapse vs reinfection with 92.9% accuracy (AUC = 0.9608). |
 | ***P. vivax* CDC AmpliSeq** | PRJNA1092573 | 495 amplicons (444 retained) | 444 | 196 (169 retained) | Singleton-dominated open surveillance | Distance-mode cut ($d = 0.0869$) replicates published structure (ARI = 0.8063) while preserving background singletons. |
+
+<p align="center">
+  <img src="docs/images/surveillance_tree_cores.png" width="95%" alt="National Surveillance Tree and Transmission Cores" />
+</p>
+
+*Figure 3: Unsupervised clustering and transmission core discovery across 8,058 national Cyclospora surveillance isolates. Bootstrap stability sweeps delineate 283 reproducible cores (≥90% co-assignment) spanning multi-state transmission clusters and capturing deep tripartite species divergence.*
 
 ### Computational Performance & Metric Rigor
 * **Distance Engine Speedup**: Vectorized calculation over compressed sparse matrices processes N = 1,078 national surveillance specimens in **14.9 seconds** (vs 24.6 minutes in legacy scripts; **99.2× speedup**), scaling to 8,058 isolates in under 4 minutes on a standard 16-core workstation.
